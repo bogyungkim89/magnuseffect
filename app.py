@@ -68,8 +68,8 @@ def calculate_trajectory_3d(v0, theta_deg, spin_rpm, rho, spin_type):
 st.set_page_config(page_title="3D 야구공 물리 시뮬레이터", layout="wide")
 st.title("⚾ 3D 야구공 궤적 및 힘 벡터 시뮬레이터")
 st.markdown("""
-- **애니메이션 중 관찰:** 공이 날아가는 동안에도 그래프 안을 마우스로 **드래그**하여 다양한 각도에서 입체적으로 궤적을 확인하실 수 있습니다.
-- 화살표는 각 힘의 방향과 크기를 정교하게 나타냅니다.
+- **애니메이션 중 관찰:** 공이 날아가는 동안에도 그래프 안을 마우스로 **드래그**하여 다양한 각도에서 궤적을 입체적으로 돌려보세요!
+- 화살표는 각 힘의 방향과 크기를 정교하게 나타냅니다. (초록: 중력, 빨강: 공기저항, 보라: 마그누스 힘)
 """)
 
 with st.sidebar:
@@ -106,7 +106,6 @@ fig.add_trace(go.Scatter3d(x=[x_val[0]], y=[z_val[0]], z=[y_val[0]], mode='lines
 fig.add_trace(go.Scatter3d(x=[x_val[0]], y=[z_val[0]], z=[y_val[0]], mode='markers', 
                            marker=dict(color='red', size=8), name='야구공'))
 
-# 초기 프레임의 힘 벡터 데이터 추출 (Plotly 3D: X=전후, Y=좌우(Z), Z=상하(Y))
 gx, gy, gz = Fg_val[0][0], Fg_val[0][2], Fg_val[0][1]
 dx, dy, dz = Fd_val[0][0], Fd_val[0][2], Fd_val[0][1]
 mx, my, mz = Fm_val[0][0], Fm_val[0][2], Fm_val[0][1]
@@ -144,15 +143,12 @@ for i in range(0, len(x_val), interval):
             go.Scatter3d(x=x_val[:i+1], y=z_val[:i+1], z=y_val[:i+1]), 
             go.Scatter3d(x=[px], y=[py], z=[pz]),  
             
-            # 중력 (선 + 원뿔)
             go.Scatter3d(x=[px, px + gx*arrow_scale], y=[py, py + gy*arrow_scale], z=[pz, pz + gz*arrow_scale]),
             go.Cone(x=[px + gx*arrow_scale], y=[py + gy*arrow_scale], z=[pz + gz*arrow_scale], u=[gx], v=[gy], w=[gz]),
             
-            # 공기 저항력 (선 + 원뿔)
             go.Scatter3d(x=[px, px + dx*arrow_scale], y=[py, py + dy*arrow_scale], z=[pz, pz + dz*arrow_scale]),
             go.Cone(x=[px + dx*arrow_scale], y=[py + dy*arrow_scale], z=[pz + dz*arrow_scale], u=[dx], v=[dy], w=[dz]),
             
-            # 마그누스 힘 (선 + 원뿔)
             go.Scatter3d(x=[px, px + mx*arrow_scale], y=[py, py + my*arrow_scale], z=[pz, pz + mz*arrow_scale]),
             go.Cone(x=[px + mx*arrow_scale], y=[py + my*arrow_scale], z=[pz + mz*arrow_scale], u=[mx], v=[my], w=[mz])
         ]
@@ -161,6 +157,7 @@ fig.frames = frames
 
 # 11. 레이아웃 및 3D 카메라 설정
 fig.update_layout(
+    uirevision='constant', # 🌟 핵심 해결책: 프레임이 새로고침되어도 사용자가 돌려놓은 3D 시점 유지!
     scene=dict(
         xaxis=dict(range=[0, 20], title="투구 거리 (m)", showgrid=True),
         yaxis=dict(range=[-2, 2], title="좌우 폭 (m)", showgrid=True), 
@@ -183,8 +180,8 @@ fig.update_layout(
         buttons=[
             dict(label="▶ 재생",
                  method="animate",
-                 # redraw=False로 변경하여 애니메이션 중 시점 회전(드래그)을 허용합니다!
-                 args=[None, dict(frame=dict(duration=80, redraw=False), transition=dict(duration=0), fromcurrent=True)]),
+                 # 다시 redraw=True로 되돌려 공이 움직이게 만듭니다. (대신 uirevision이 시점을 방어해줍니다)
+                 args=[None, dict(frame=dict(duration=80, redraw=True), transition=dict(duration=0), fromcurrent=True)]),
             dict(label="⏸ 일시정지",
                  method="animate",
                  args=[[None], dict(frame=dict(duration=0, redraw=False), mode="immediate", transition=dict(duration=0))])
