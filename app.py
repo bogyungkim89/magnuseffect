@@ -11,8 +11,8 @@ Cd = 0.3  # 항력 계수
 Cl_factor = 1.5  # 마그누스 양력 계수 비례상수
 
 dt = 0.005  # 시간 간격 (초)
-arrow_scale = 0.25  # 화살표 길이 대폭 축소 (기존 0.4 -> 0.25)
-cone_scale = 0.1    # 화살표 머리(원뿔) 크기 대폭 축소 (기존 0.3 -> 0.1)
+arrow_scale = 0.25  # 화살표 길이 대폭 축소
+cone_scale = 0.1    # 화살표 머리(원뿔) 크기 대폭 축소
 
 def calculate_trajectory_3d(v0, theta_deg, spin_rpm, rho, spin_type):
     """3D 벡터 외적을 활용한 정교한 3차원 궤적 및 힘 계산기"""
@@ -68,7 +68,6 @@ def calculate_trajectory_3d(v0, theta_deg, spin_rpm, rho, spin_type):
 st.set_page_config(page_title="3D 야구공 물리 시뮬레이터", layout="wide")
 st.title("⚾ 3D 야구공 궤적 및 힘 벡터 시뮬레이터")
 st.markdown("""
-- **애니메이션 중 관찰:** 공이 날아가는 동안에도 그래프 안을 마우스로 **드래그**하여 다양한 각도에서 궤적을 입체적으로 돌려보세요!
 - 화살표는 각 힘의 방향과 크기를 정교하게 나타냅니다. (초록: 중력, 빨강: 공기저항, 보라: 마그누스 힘)
 """)
 
@@ -171,7 +170,7 @@ fig.update_layout(
         )
     ),
     height=700,
-    margin=dict(l=0, r=0, b=0, t=30),
+    margin=dict(l=0, r=0, b=80, t=30), # 하단 여백(b)을 80으로 늘려 잘림 현상 해결
     showlegend=False,
     updatemenus=[dict(
         type="buttons",
