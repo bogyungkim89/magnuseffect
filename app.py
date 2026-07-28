@@ -17,11 +17,18 @@ def calculate_trajectory_3d(v0, theta_deg, spin_rpm, rho, spin_type):
     vel = np.array([v0 * np.cos(theta), v0 * np.sin(theta), 0.0])
     
     omega_mag = spin_rpm * (2 * np.pi / 60)
-    if "백스핀" in spin_type: omega = np.array([0.0, 0.0, omega_mag]) 
-    elif "톱스핀" in spin_type: omega = np.array([0.0, 0.0, -omega_mag]) 
-    elif "사이드스핀" in spin_type: omega = np.array([0.0, omega_mag, 0.0]) 
-    elif "자이로스핀" in spin_type: omega = np.array([omega_mag, 0.0, 0.0]) 
-    else: omega = np.array([0.0, 0.0, 0.0])
+    
+    # 🌟 구종별 회전축(Omega Vector) 설정
+    if "백스핀" in spin_type:
+        omega = np.array([0.0, 0.0, omega_mag]) # Z축 회전 (위로 뜸)
+    elif "톱스핀" in spin_type:
+        omega = np.array([0.0, 0.0, -omega_mag]) # Z축 역회전 (아래로 떨어짐)
+    elif "사이드스핀" in spin_type:
+        omega = np.array([0.0, omega_mag, 0.0]) # Y축 회전 (옆으로 휨)
+    elif "자이로스핀" in spin_type:
+        omega = np.array([omega_mag, 0.0, 0.0]) # X축 회전 (진행 방향과 평행 -> 마그누스 힘 0)
+    else:
+        omega = np.array([0.0, 0.0, 0.0]) # 무회전
         
     x_t, y_t, z_t = [], [], []
     while pos[1] > 0 and pos[0] < 20: 
@@ -33,6 +40,7 @@ def calculate_trajectory_3d(v0, theta_deg, spin_rpm, rho, spin_type):
         F_g = np.array([0.0, -m * g, 0.0])
         F_d = - (0.5 * rho * v_mag**2 * Cd * A) * (vel / v_mag) if v_mag > 0 else np.array([0.0, 0.0, 0.0])
         
+        # 마그누스 힘 계산 (자이로스핀의 경우 omega와 vel이 평행하므로 외적 결과가 [0,0,0]이 되어 마그누스 힘이 정확히 0이 됨)
         F_m = np.array([0.0, 0.0, 0.0])
         if v_mag > 0 and np.linalg.norm(omega) > 0:
             F_m = 0.5 * rho * A * Cl_factor * r * np.cross(omega, vel)
@@ -43,7 +51,7 @@ def calculate_trajectory_3d(v0, theta_deg, spin_rpm, rho, spin_type):
         
     return x_t, y_t, z_t
 
-# --- SVG 마커 정의 ---
+# --- SVG 마커 및 기본 도형 정의 ---
 svg_defs = """
 <defs>
     <marker id="arrow-blue" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse">
@@ -68,8 +76,8 @@ ball_base = '<circle cx="50" cy="50" r="35" fill="#f8f9fa" stroke="#343a40" stro
 
 # --- Streamlit UI 구성 ---
 st.set_page_config(page_title="3D 야구공 물리 시뮬레이터", layout="wide")
-st.title("⚾ 3D 야구공 궤적 및 릴리즈 스냅 시뮬레이터")
-st.markdown("선택한 구종의 그립, **릴리즈 스냅 애니메이션**, 그리고 전체 비행 궤적을 입체적으로 확인하세요!")
+st.title("⚾ 3D 야구공 궤적 시뮬레이터")
+st.markdown("선택한 구종의 그립, 릴리스 스냅, 그리고 **자이로스핀(마그누스 힘 0)**의 물리적 원리를 단계별 그림으로 확인하세요!")
 
 with st.sidebar:
     st.header("투구 설정")
@@ -86,35 +94,40 @@ with st.sidebar:
     st.header("환경 설정 (공기 밀도)")
     rho = st.slider("공기 밀도 (kg/m³)", 0.8, 1.3, 1.225, 0.005)
 
-# --- 구종별 설명 패널 ---
+# --- 구종별 그림(SVG) UI 패널 ---
 st.markdown("---")
-st.subheader(f"💡 {spin_type}의 물리적 특성 및 릴리즈 스냅")
+st.subheader(f"💡 {spin_type}의 물리적 특성")
 col1, col2, col3, col4 = st.columns(4)
 
+# 그림 코드(SVG) 생성 분기
 if "백스핀" in spin_type:
     svg_grip = f'<svg viewBox="0 0 100 100" width="130" height="130">{ball_base}<rect x="38" y="0" width="10" height="45" rx="5" fill="#ffcdb2" stroke="#343a40" stroke-width="1.5"/><rect x="52" y="0" width="10" height="45" rx="5" fill="#ffcdb2" stroke="#343a40" stroke-width="1.5"/></svg>'
     svg_snap = f'<svg viewBox="0 0 100 100" width="130" height="130">{svg_defs}{ball_base}<path d="M 50 15 C 75 15, 80 50, 50 85" fill="none" stroke="#e63946" stroke-width="4" marker-end="url(#arrow-red)"/></svg>'
     svg_magnus = f'<svg viewBox="0 0 100 100" width="130" height="130">{svg_defs}{ball_base}<path d="M 80 50 A 30 30 0 0 0 20 50" fill="none" stroke="#457b9d" stroke-width="3" marker-end="url(#arrow-blue)"/><line x1="50" y1="50" x2="50" y2="5" stroke="#9d4edd" stroke-width="4" marker-end="url(#arrow-purple)"/></svg>'
     svg_force = f'<svg viewBox="0 0 100 100" width="130" height="130">{svg_defs}{ball_base}<line x1="45" y1="50" x2="45" y2="85" stroke="#2a9d8f" stroke-width="3" marker-end="url(#arrow-green)"/><line x1="55" y1="50" x2="55" y2="15" stroke="#9d4edd" stroke-width="3" marker-end="url(#arrow-purple)"/><line x1="50" y1="50" x2="50" y2="40" stroke="#000000" stroke-width="4" stroke-dasharray="3,3" marker-end="url(#arrow-black)"/></svg>'
-    desc1, desc2, desc3, desc4 = "수직으로 넓게 얹은 두 손가락", "위에서 아래로 실밥을 강하게 긁어내림", "공 아랫부분이 앞으로 구르는 백스핀 (양력)", "마그누스가 중력을 상쇄하여 덜 떨어짐"
+    desc1, desc2, desc3, desc4 = "수직으로 넓게 얹은 두 손가락", "위에서 아래로 실밥을 강하게 긁어내림 (스냅)", "공 아랫부분이 앞으로 구르는 백스핀 (양력)", "마그누스가 중력을 상쇄하여 덜 떨어짐"
+
 elif "톱스핀" in spin_type:
     svg_grip = f'<svg viewBox="0 0 100 100" width="130" height="130">{ball_base}<rect x="55" y="5" width="10" height="45" rx="5" fill="#ffcdb2" stroke="#343a40" stroke-width="1.5" transform="rotate(30, 55, 5)"/><rect x="68" y="10" width="10" height="45" rx="5" fill="#ffcdb2" stroke="#343a40" stroke-width="1.5" transform="rotate(30, 68, 10)"/></svg>'
     svg_snap = f'<svg viewBox="0 0 100 100" width="130" height="130">{svg_defs}{ball_base}<path d="M 50 15 C 25 15, 20 50, 50 85" fill="none" stroke="#e63946" stroke-width="4" marker-end="url(#arrow-red)"/></svg>'
     svg_magnus = f'<svg viewBox="0 0 100 100" width="130" height="130">{svg_defs}{ball_base}<path d="M 20 50 A 30 30 0 0 0 80 50" fill="none" stroke="#457b9d" stroke-width="3" marker-end="url(#arrow-blue)"/><line x1="50" y1="50" x2="50" y2="95" stroke="#9d4edd" stroke-width="4" marker-end="url(#arrow-purple)"/></svg>'
     svg_force = f'<svg viewBox="0 0 100 100" width="130" height="130">{svg_defs}{ball_base}<line x1="45" y1="50" x2="45" y2="75" stroke="#2a9d8f" stroke-width="3" marker-end="url(#arrow-green)"/><line x1="55" y1="50" x2="55" y2="75" stroke="#9d4edd" stroke-width="3" marker-end="url(#arrow-purple)"/><line x1="50" y1="50" x2="50" y2="95" stroke="#000000" stroke-width="4" stroke-dasharray="3,3" marker-end="url(#arrow-black)"/></svg>'
     desc1, desc2, desc3, desc4 = "실밥 선을 따라 감싸 쥔 손가락", "손목을 꺾어 공 앞면을 덮어 씌우듯 긁어내림", "공 윗부분이 앞으로 구르는 톱스핀 (하향력)", "중력과 마그누스가 합쳐져 급격히 떨어짐"
+
 elif "사이드스핀" in spin_type:
     svg_grip = f'<svg viewBox="0 0 100 100" width="130" height="130">{ball_base}<rect x="55" y="0" width="10" height="45" rx="5" fill="#ffcdb2" stroke="#343a40" stroke-width="1.5" transform="rotate(15, 55, 0)"/><rect x="68" y="-5" width="10" height="45" rx="5" fill="#ffcdb2" stroke="#343a40" stroke-width="1.5" transform="rotate(15, 68, -5)"/></svg>'
     svg_snap = f'<svg viewBox="0 0 100 100" width="130" height="130">{svg_defs}{ball_base}<path d="M 65 15 C 90 35, 90 65, 65 85" fill="none" stroke="#e63946" stroke-width="4" marker-end="url(#arrow-red)"/></svg>'
     svg_magnus = f'<svg viewBox="0 0 100 100" width="130" height="130">{svg_defs}{ball_base}<ellipse cx="50" cy="50" rx="35" ry="12" fill="none" stroke="#457b9d" stroke-width="3" stroke-dasharray="3,3"/><line x1="50" y1="50" x2="95" y2="50" stroke="#9d4edd" stroke-width="4" marker-end="url(#arrow-purple)"/></svg>'
     svg_force = f'<svg viewBox="0 0 100 100" width="130" height="130">{svg_defs}{ball_base}<line x1="50" y1="50" x2="50" y2="85" stroke="#2a9d8f" stroke-width="3" marker-end="url(#arrow-green)"/><line x1="50" y1="50" x2="85" y2="50" stroke="#9d4edd" stroke-width="3" marker-end="url(#arrow-purple)"/><line x1="50" y1="50" x2="85" y2="85" stroke="#000000" stroke-width="4" stroke-dasharray="3,3" marker-end="url(#arrow-black)"/></svg>'
-    desc1, desc2, desc3, desc4 = "중심축 바깥쪽으로 치우쳐 쥔 손가락", "공 측면 실밥을 팽이 돌리듯 비껴 베어냄", "측면으로 도는 사이드스핀 (수평력)", "아래로 떨어지며 옆으로 예리하게 꺾임"
+    desc1, desc2, desc3, desc4 = "중심축 바깥쪽으로 치우쳐 쥔 손가락", "공의 측면 실밥을 팽이 돌리듯 비껴 베어냄", "측면으로 도는 사이드스핀 (수평력)", "아래로 떨어지며 옆으로 예리하게 꺾임"
+
 elif "자이로스핀" in spin_type:
     svg_grip = f'<svg viewBox="0 0 100 100" width="130" height="130">{ball_base}<circle cx="50" cy="50" r="15" fill="#ffcdb2" stroke="#343a40" stroke-width="1.5"/></svg>'
     svg_snap = f'<svg viewBox="0 0 100 100" width="130" height="130">{svg_defs}{ball_base}<path d="M 30 50 Q 50 30, 70 50 Q 50 70, 30 50" fill="none" stroke="#e63946" stroke-width="4" marker-end="url(#arrow-red)"/></svg>'
     svg_magnus = f'<svg viewBox="0 0 100 100" width="130" height="130">{svg_defs}{ball_base}<text x="50" y="55" font-size="14" text-anchor="middle" fill="#9d4edd" font-weight="bold">Force = 0</text></svg>'
     svg_force = f'<svg viewBox="0 0 100 100" width="130" height="130">{svg_defs}{ball_base}<line x1="50" y1="50" x2="50" y2="85" stroke="#2a9d8f" stroke-width="3" marker-end="url(#arrow-green)"/><line x1="50" y1="50" x2="50" y2="85" stroke="#000000" stroke-width="4" stroke-dasharray="3,3" marker-end="url(#arrow-black)"/></svg>'
-    desc1, desc2, desc3, desc4 = "총알처럼 감싸 쥔 그립", "손목을 비틀어 나선형 회전(총알 회전) 가함", "진행 방향과 평행하여 마그누스 힘 0", "오직 중력만 받아 홈플레이트에서 뚝 떨어짐"
+    desc1, desc2, desc3, desc4 = "총알처럼 감싸 쥔 그립", "손목을 비틀어 나선형 회전(총알 회전)을 가함", "진행 방향과 평행하여 **마그누스 힘 0**", "오직 중력만 받아 홈플레이트에서 뚝 떨어짐"
+
 else:
     svg_grip = f'<svg viewBox="0 0 100 100" width="130" height="130">{ball_base}<rect x="25" y="0" width="10" height="40" rx="5" fill="#ffcdb2" stroke="#343a40" stroke-width="1.5" transform="rotate(-20, 25, 0)"/><rect x="65" y="0" width="10" height="40" rx="5" fill="#ffcdb2" stroke="#343a40" stroke-width="1.5" transform="rotate(20, 65, 0)"/></svg>'
     svg_snap = f'<svg viewBox="0 0 100 100" width="130" height="130">{svg_defs}{ball_base}<line x1="50" y1="30" x2="50" y2="70" stroke="#e63946" stroke-width="4" stroke-dasharray="4,4" marker-end="url(#arrow-red)"/></svg>'
@@ -141,88 +154,13 @@ with col4:
 
 st.markdown("---")
 
-# --- 1. 릴리즈 스냅 & 회전 시작 3D 애니메이션 생성 ---
-st.subheader("🎬 구종별 릴리즈 스냅 및 회전 시작 애니메이션")
-st.markdown("공이 손에서 떠나며 **실제 스냅 방향으로 튀어나오고 회전하기 시작하는 찰나의 순간**을 3D로 확대하여 보여줍니다.")
-
-def get_release_animation_data(spin_type):
-    t = np.linspace(0, 2*np.pi, 30)
-    if "백스핀" in spin_type:
-        rx = np.zeros_like(t)
-        ry = 0.3 * np.cos(t)
-        rz = 2.0 + 0.3 * np.sin(t)
-        snap_arrow = ([0, 0], [0, 0], [1.5, 2.5])
-    elif "톱스핀" in spin_type:
-        rx = np.zeros_like(t)
-        ry = 0.3 * np.cos(t)
-        rz = 2.0 + 0.3 * np.sin(t)
-        snap_arrow = ([0, 0], [0, 0], [2.5, 1.5])
-    elif "사이드스핀" in spin_type:
-        rx = 0.3 * np.cos(t)
-        ry = 0.3 * np.sin(t)
-        rz = 2.0 * np.ones_like(t)
-        snap_arrow = ([0, 0], [-1.0, 1.0], [2.0, 2.0])
-    elif "자이로스핀" in spin_type:
-        rx = 0.3 * np.cos(t)
-        ry = 2.0 + 0.3 * np.sin(t)
-        rz = np.zeros_like(t)
-        snap_arrow = ([0, 1.5], [0, 0], [2.0, 2.0])
-    else:
-        rx, ry, rz = np.array([]), np.array([]), np.array([])
-        snap_arrow = ([0, 0], [0, 0], [2.0, 2.0])
-    return rx, ry, rz, snap_arrow, t
-
-rel_rx, rel_ry, rel_rz, snap_vec, t = get_release_animation_data(spin_type)
-
-fig_rel = go.Figure()
-fig_rel.add_trace(go.Scatter3d(x=snap_vec[0], y=snap_vec[1], z=snap_vec[2], mode='lines', line=dict(color='red', width=8), name='손가락 스냅 방향'))
-fig_rel.add_trace(go.Scatter3d(x=[0], y=[0], z=[2.0], mode='markers', marker=dict(color='black', size=12), name='야구공'))
-if len(rel_rx) > 0:
-    fig_rel.add_trace(go.Scatter3d(x=rel_rx, y=rel_ry, z=rel_rz, mode='lines', line=dict(color='purple', width=4), name='회전 방향 (스핀)'))
-
-rel_frames = []
-for i in range(1, len(t) if len(t)>0 else 2):
-    rel_frames.append(go.Frame(
-        data=[
-            go.Scatter3d(x=snap_vec[0], y=snap_vec[1], z=snap_vec[2]),
-            go.Scatter3d(x=[0], y=[0], z=[2.0]),
-            go.Scatter3d(x=rel_rx[:i+1], y=rel_ry[:i+1], z=rel_rz[:i+1])
-        ]
-    ))
-fig_rel.frames = rel_frames
-
-fig_rel.update_layout(
-    uirevision='rel_constant',
-    scene=dict(
-        xaxis=dict(range=[-1, 1], title="전후", showgrid=True),
-        yaxis=dict(range=[-1, 1], title="좌우", showgrid=True),
-        zaxis=dict(range=[1, 3], title="높이", showgrid=True),
-        aspectmode='cube',
-        camera=dict(eye=dict(x=1.5, y=-1.5, z=1.2))
-    ),
-    height=400,
-    margin=dict(l=0, r=0, b=40, t=10),
-    showlegend=False,
-    updatemenus=[dict(
-        type="buttons", showactive=False, direction="left", x=0.5, y=-0.2, xanchor="center", yanchor="top",
-        buttons=[
-            dict(label="▶ 스냅 재생", method="animate", args=[None, dict(frame=dict(duration=50, redraw=True), transition=dict(duration=0), fromcurrent=True)]),
-            dict(label="⏸ 일시정지", method="animate", args=[[None], dict(frame=dict(duration=0, redraw=False), mode="immediate", transition=dict(duration=0))])
-        ]
-    )]
-)
-st.plotly_chart(fig_rel, use_container_width=True)
-
-st.markdown("---")
-
-# --- 2. 전체 비행 궤적 3D 시뮬레이터 ---
-st.subheader("✈️ 홈플레이트까지의 전체 비행 궤적 시뮬레이터")
-st.markdown("하단의 재생 버튼을 눌러 공이 포수 미트를 향해 날아가는 전체 궤적을 확인하세요.")
-
+# --- 궤적 계산 ---
 x_val, y_val, z_val = calculate_trajectory_3d(v0_ms, 1.0, spin_rpm, rho, spin_type)
 x_base, y_base, z_base = calculate_trajectory_3d(v0_ms, 1.0, 0, rho, "무회전") 
 
+# --- Plotly 3D 애니메이션 구성 ---
 fig = go.Figure()
+
 fig.add_trace(go.Scatter3d(x=x_base, y=z_base, z=y_base, mode='lines', line=dict(color='lightgray', dash='dash', width=4), name='무회전 궤적'))
 fig.add_trace(go.Scatter3d(x=[x_val[0]], y=[z_val[0]], z=[y_val[0]], mode='lines', line=dict(color='blue', width=4), name=spin_type))
 fig.add_trace(go.Scatter3d(x=[x_val[0]], y=[z_val[0]], z=[y_val[0]], mode='markers', marker=dict(color='black', size=5), name='야구공'))
@@ -240,6 +178,7 @@ for i in range(0, len(x_val), interval):
     ))
 fig.frames = frames
 
+# 5. 레이아웃 및 3D 카메라 설정
 fig.update_layout(
     uirevision='constant',
     scene=dict(
@@ -257,7 +196,7 @@ fig.update_layout(
     updatemenus=[dict(
         type="buttons", showactive=False, direction="left", x=0.5, y=-0.1, xanchor="center", yanchor="top",
         buttons=[
-            dict(label="▶ 전체 비행 재생", method="animate", args=[None, dict(frame=dict(duration=80, redraw=True), transition=dict(duration=0), fromcurrent=True)]),
+            dict(label="▶ 재생", method="animate", args=[None, dict(frame=dict(duration=80, redraw=True), transition=dict(duration=0), fromcurrent=True)]),
             dict(label="⏸ 일시정지", method="animate", args=[[None], dict(frame=dict(duration=0, redraw=False), mode="immediate", transition=dict(duration=0))])
         ]
     )]
