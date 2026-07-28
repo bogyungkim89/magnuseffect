@@ -26,48 +26,45 @@ def calculate_trajectory_with_forces(v0, theta_deg, spin_rpm, rho, spin_type):
     else:
         omega = 0.0 
         
-    x_traj, y_traj = [x], [y]
-    Fg_traj, Fd_traj, Fm_traj, v_traj = [], [], [], [] # 힘 벡터 및 속도 저장
+    # 모든 리스트를 빈 상태로 시작하여 길이를 완벽하게 일치시킵니다.
+    x_traj, y_traj = [], []
+    Fg_traj, Fd_traj, Fm_traj, v_traj = [], [], [], []
     
     while y > 0 and x < 20: 
+        # 1. 현재 위치 저장
+        x_traj.append(x)
+        y_traj.append(y)
+        
         v = np.sqrt(vx**2 + vy**2)
-        v_traj.append((vx, vy)) # 속도 벡터 저장
+        v_traj.append((vx, vy))
 
-        # 중력
+        # 2. 중력 (항상 아래로 일정)
         F_g = (0, -m * g)
         Fg_traj.append(F_g)
         
-        # 공기 저항력 (Drag Force)
+        # 3. 공기 저항력 (이동 반대 방향)
         Fd_mag = 0.5 * rho * v**2 * Cd * A
         Fd = (-Fd_mag * (vx / v) if v > 0 else 0, -Fd_mag * (vy / v) if v > 0 else 0)
         Fd_traj.append(Fd)
         
-        # 마그누스 힘 (Magnus Force)
+        # 4. 마그누스 힘 (회전 방향에 따라 수직으로 작용)
         Fm_mag = 0.5 * rho * v**2 * (Cl_factor * (r * omega / v)) * A if v > 0 else 0
-        
         if spin_type == "백스핀 (포심 패스트볼)":
-            # 백스핀: 위로 향하는 양력 (vx, vy를 90도 시계 반대 방향 회전)
             Fm = (-Fm_mag * (vy / v) if v > 0 else 0, Fm_mag * (vx / v) if v > 0 else 0)
         elif spin_type == "톱스핀 (커브볼)":
-            # 톱스핀: 아래로 향하는 힘 (vx, vy를 90도 시계 방향 회전)
             Fm = (Fm_mag * (vy / v) if v > 0 else 0, -Fm_mag * (vx / v) if v > 0 else 0)
         else:
-            # 무회전
             Fm = (0, 0)
         Fm_traj.append(Fm)
         
-        # 가속도 (F_net / m)
+        # 5. 가속도 적용 및 다음 위치(x, y) 업데이트
         ax = (Fd[0] + Fm[0]) / m
         ay = (F_g[1] + Fd[1] + Fm[1]) / m
         
-        # 속도 및 위치 업데이트
         vx += ax * dt
         vy += ay * dt
         x += vx * dt
         y += vy * dt
-        
-        x_traj.append(x)
-        y_traj.append(y)
         
     return x_traj, y_traj, Fg_traj, Fd_traj, Fm_traj, v_traj
 
@@ -75,7 +72,7 @@ def calculate_trajectory_with_forces(v0, theta_deg, spin_rpm, rho, spin_type):
 st.set_page_config(page_title="야구공 궤적 및 힘 벡터 시뮬레이터", layout="wide")
 st.title("⚾ 야구공 투구 궤적 및 힘 벡터 시뮬레이터 (애니메이션)")
 st.markdown("왼쪽에서 투구 설정을 맞춘 뒤, 그래프 아래의 **'▶ 투구 시작!'** 버튼을 눌러 공이 날아가는 궤적과 힘 벡터의 변화를 확인하세요.")
-st.markdown("💡 **도움말:** 화살표는 각 힘의 방향과 크기를 나타냅니다. 화살표 크기 스케일을 조정하여 시각적 차이를 확인해 보세요.")
+st.markdown("💡 **도움말:** 화살표는 각 힘의 방향과 크기를 나타냅니다. 구속과 회전수를 바꾸면 화살표 길이가 어떻게 달라지는지 관찰해 보세요!")
 
 with st.sidebar:
     st.header("투구 설정")
