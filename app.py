@@ -1,9 +1,6 @@
 import streamlit as st
 import numpy as np
-import matplotlib.pyplot as plt
-
-# 한글 폰트 깨짐 방지 (시스템에 따라 기본 폰트 적용)
-plt.rcParams['axes.unicode_minus'] = False
+import plotly.graph_objects as go
 
 # --- 물리 상수 설정 ---
 m = 0.145
@@ -44,9 +41,9 @@ def calculate_trajectory_3d(v0, theta_deg, spin_rpm, rho, spin_type):
         vel += acc * dt
         pos += vel * dt
         
-    return np.array(x_t), np.array(y_t), np.array(z_t)
+    return x_t, y_t, z_t
 
-# --- SVG 마커 정의 (상단 정보 패널용) ---
+# --- SVG 마커 정의 ---
 svg_defs = """
 <defs>
     <marker id="arrow-blue" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse">
@@ -71,8 +68,8 @@ ball_base = '<circle cx="50" cy="50" r="35" fill="#f8f9fa" stroke="#343a40" stro
 
 # --- Streamlit UI 구성 ---
 st.set_page_config(page_title="3D 야구공 물리 시뮬레이터", layout="wide")
-st.title("⚾ 3D 야구공 궤적 및 물리 시뮬레이터 (WebGL 안전 모드)")
-st.markdown("브라우저 WebGL 호환성과 관계없이 완벽하게 작동하는 Matplotlib 기반 3D 시뮬레이터입니다.")
+st.title("⚾ 3D 야구공 궤적 및 릴리즈 스냅 시뮬레이터")
+st.markdown("선택한 구종의 그립, **릴리즈 스냅 애니메이션**, 그리고 전체 비행 궤적을 입체적으로 확인하세요!")
 
 with st.sidebar:
     st.header("투구 설정")
@@ -144,46 +141,126 @@ with col4:
 
 st.markdown("---")
 
-# --- 궤적 데이터 계산 ---
+# --- 1. 릴리즈 스냅 & 회전 시작 3D 애니메이션 생성 ---
+st.subheader("🎬 구종별 릴리즈 스냅 및 회전 시작 애니메이션")
+st.markdown("공이 손에서 떠나며 **실제 스냅 방향으로 튀어나오고 회전하기 시작하는 찰나의 순간**을 3D로 확대하여 보여줍니다.")
+
+def get_release_animation_data(spin_type):
+    t = np.linspace(0, 2*np.pi, 30)
+    if "백스핀" in spin_type:
+        rx = np.zeros_like(t)
+        ry = 0.3 * np.cos(t)
+        rz = 2.0 + 0.3 * np.sin(t)
+        snap_arrow = ([0, 0], [0, 0], [1.5, 2.5])
+    elif "톱스핀" in spin_type:
+        rx = np.zeros_like(t)
+        ry = 0.3 * np.cos(t)
+        rz = 2.0 + 0.3 * np.sin(t)
+        snap_arrow = ([0, 0], [0, 0], [2.5, 1.5])
+    elif "사이드스핀" in spin_type:
+        rx = 0.3 * np.cos(t)
+        ry = 0.3 * np.sin(t)
+        rz = 2.0 * np.ones_like(t)
+        snap_arrow = ([0, 0], [-1.0, 1.0], [2.0, 2.0])
+    elif "자이로스핀" in spin_type:
+        rx = 0.3 * np.cos(t)
+        ry = 2.0 + 0.3 * np.sin(t)
+        rz = np.zeros_like(t)
+        snap_arrow = ([0, 1.5], [0, 0], [2.0, 2.0])
+    else:
+        rx, ry, rz = np.array([]), np.array([]), np.array([])
+        snap_arrow = ([0, 0], [0, 0], [2.0, 2.0])
+    return rx, ry, rz, snap_arrow, t
+
+rel_rx, rel_ry, rel_rz, snap_vec, t = get_release_animation_data(spin_type)
+
+fig_rel = go.Figure()
+fig_rel.add_trace(go.Scatter3d(x=snap_vec[0], y=snap_vec[1], z=snap_vec[2], mode='lines', line=dict(color='red', width=8), name='손가락 스냅 방향'))
+fig_rel.add_trace(go.Scatter3d(x=[0], y=[0], z=[2.0], mode='markers', marker=dict(color='black', size=12), name='야구공'))
+if len(rel_rx) > 0:
+    fig_rel.add_trace(go.Scatter3d(x=rel_rx, y=rel_ry, z=rel_rz, mode='lines', line=dict(color='purple', width=4), name='회전 방향 (스핀)'))
+
+rel_frames = []
+for i in range(1, len(t) if len(t)>0 else 2):
+    rel_frames.append(go.Frame(
+        data=[
+            go.Scatter3d(x=snap_vec[0], y=snap_vec[1], z=snap_vec[2]),
+            go.Scatter3d(x=[0], y=[0], z=[2.0]),
+            go.Scatter3d(x=rel_rx[:i+1], y=rel_ry[:i+1], z=rel_rz[:i+1])
+        ]
+    ))
+fig_rel.frames = rel_frames
+
+fig_rel.update_layout(
+    uirevision='rel_constant',
+    scene=dict(
+        xaxis=dict(range=[-1, 1], title="전후", showgrid=True),
+        yaxis=dict(range=[-1, 1], title="좌우", showgrid=True),
+        zaxis=dict(range=[1, 3], title="높이", showgrid=True),
+        aspectmode='cube',
+        camera=dict(eye=dict(x=1.5, y=-1.5, z=1.2))
+    ),
+    height=400,
+    margin=dict(l=0, r=0, b=40, t=10),
+    showlegend=False,
+    updatemenus=[dict(
+        type="buttons", showactive=False, direction="left", x=0.5, y=-0.2, xanchor="center", yanchor="top",
+        buttons=[
+            dict(label="▶ 스냅 재생", method="animate", args=[None, dict(frame=dict(duration=50, redraw=True), transition=dict(duration=0), fromcurrent=True)]),
+            dict(label="⏸ 일시정지", method="animate", args=[[None], dict(frame=dict(duration=0, redraw=False), mode="immediate", transition=dict(duration=0))])
+        ]
+    )]
+)
+st.plotly_chart(fig_rel, use_container_width=True)
+
+st.markdown("---")
+
+# --- 2. 전체 비행 궤적 3D 시뮬레이터 ---
+st.subheader("✈️ 홈플레이트까지의 전체 비행 궤적 시뮬레이터")
+st.markdown("하단의 재생 버튼을 눌러 공이 포수 미트를 향해 날아가는 전체 궤적을 확인하세요.")
+
 x_val, y_val, z_val = calculate_trajectory_3d(v0_ms, 1.0, spin_rpm, rho, spin_type)
-x_base, y_base, z_base = calculate_trajectory_3d(v0_ms, 1.0, 0, rho, "무회전")
+x_base, y_base, z_base = calculate_trajectory_3d(v0_ms, 1.0, 0, rho, "무회전") 
 
-# --- Matplotlib 기반 3D 비행 궤적 시각화 ---
-st.subheader("✈️ 홈플레이트까지의 3D 비행 궤적 (Matplotlib 렌더링)")
-st.markdown("슬라이더를 움직여 공이 날아가는 위치를 실시간으로 확인하거나, 각도 조절로 입체적으로 관찰하세요.")
+fig = go.Figure()
+fig.add_trace(go.Scatter3d(x=x_base, y=z_base, z=y_base, mode='lines', line=dict(color='lightgray', dash='dash', width=4), name='무회전 궤적'))
+fig.add_trace(go.Scatter3d(x=[x_val[0]], y=[z_val[0]], z=[y_val[0]], mode='lines', line=dict(color='blue', width=4), name=spin_type))
+fig.add_trace(go.Scatter3d(x=[x_val[0]], y=[z_val[0]], z=[y_val[0]], mode='markers', marker=dict(color='black', size=5), name='야구공'))
 
-# 시점(각도) 조절 슬라이더
-col_ang1, col_ang2 = st.columns(2)
-with col_ang1:
-    elev = st.slider("상하 각도 (Elevation)", 0, 90, 20)
-with col_ang2:
-    azim = st.slider("좌우 각도 (Azimuth)", -180, 180, -60)
+frames = []
+interval = 5 
+for i in range(0, len(x_val), interval):
+    px, py, pz = x_val[i], z_val[i], y_val[i]
+    frames.append(go.Frame(
+        data=[
+            go.Scatter3d(x=x_base, y=z_base, z=y_base), 
+            go.Scatter3d(x=x_val[:i+1], y=z_val[:i+1], z=y_val[:i+1]), 
+            go.Scatter3d(x=[px], y=[py], z=[pz])
+        ]
+    ))
+fig.frames = frames
 
-# 진행 상황 조절 슬라이더 (애니메이션 대체)
-max_idx = len(x_val) - 1
-frame_idx = st.slider("공의 비행 위치 조절", 0, max_idx, max_idx)
+fig.update_layout(
+    uirevision='constant',
+    scene=dict(
+        xaxis=dict(range=[0, 20], title="투구 거리 (m)", showgrid=True),
+        yaxis=dict(range=[-2, 2], title="좌우 폭 (m)", showgrid=True), 
+        zaxis=dict(range=[0, 3], title="높이 (m)", showgrid=True),
+        aspectmode='manual',
+        aspectratio=dict(x=3, y=1, z=1), 
+        camera=dict(eye=dict(x=2.5, y=-1.5, z=0.8))
+    ),
+    height=600,
+    margin=dict(l=0, r=0, b=80, t=10), 
+    showlegend=True,
+    legend=dict(x=0, y=1, bgcolor='rgba(255,255,255,0.7)'),
+    updatemenus=[dict(
+        type="buttons", showactive=False, direction="left", x=0.5, y=-0.1, xanchor="center", yanchor="top",
+        buttons=[
+            dict(label="▶ 전체 비행 재생", method="animate", args=[None, dict(frame=dict(duration=80, redraw=True), transition=dict(duration=0), fromcurrent=True)]),
+            dict(label="⏸ 일시정지", method="animate", args=[[None], dict(frame=dict(duration=0, redraw=False), mode="immediate", transition=dict(duration=0))])
+        ]
+    )]
+)
 
-# Matplotlib 3D 플롯 생성
-fig = plt.figure(figsize=(10, 6))
-ax = fig.add_subplot(projection='3d')
-
-# 1. 무회전 비교선
-ax.plot(x_base, z_base, y_base, color='lightgray', linestyle='--', linewidth=2, label='무회전 궤적')
-
-# 2. 전체 회전 궤적선
-ax.plot(x_val, z_val, y_val, color='blue', linewidth=3, label=spin_type)
-
-# 3.현재 공 위치 마커
-ax.scatter([x_val[frame_idx]], [z_val[frame_idx]], [y_val[frame_idx]], color='black', s=80, label='야구공')
-
-# 축 설정 (Matplotlib 3D 좌표 변환: X=전후, Y=높이, Z=좌우폭에 맞게 매핑)
-ax.set_xlim(0, 20)
-ax.set_ylim(0, 3)
-ax.set_zlim(-2, 2)
-ax.set_xlabel("투구 거리 (m)")
-ax.set_ylabel("높이 (m)")
-ax.set_zlabel("좌우 폭 (m)")
-ax.view_init(elev=elev, azim=azim)
-ax.legend(loc='upper left')
-
-st.pyplot(fig)
+st.plotly_chart(fig, use_container_width=True)
