@@ -11,8 +11,8 @@ Cd = 0.3  # 항력 계수
 Cl_factor = 1.5  # 마그누스 양력 계수 비례상수
 
 dt = 0.005  # 시간 간격 (초)
-arrow_scale = 0.25  # 화살표 길이 대폭 축소
-cone_scale = 0.1    # 화살표 머리(원뿔) 크기 대폭 축소
+arrow_scale = 0.375  # 화살표 길이 1.5배 (기존 0.25 -> 0.375)
+cone_scale = 0.2     # 화살표 머리 크기 2배 (기존 0.1 -> 0.2)
 
 def calculate_trajectory_3d(v0, theta_deg, spin_rpm, rho, spin_type):
     """3D 벡터 외적을 활용한 정교한 3차원 궤적 및 힘 계산기"""
@@ -103,7 +103,7 @@ fig.add_trace(go.Scatter3d(x=x_base, y=z_base, z=y_base, mode='lines',
 fig.add_trace(go.Scatter3d(x=[x_val[0]], y=[z_val[0]], z=[y_val[0]], mode='lines', 
                            line=dict(color='blue', width=6), name=spin_type))
                            
-# 3. 야구공 마커 추가 (크기 축소 및 검은색 변경)
+# 3. 야구공 마커 추가
 fig.add_trace(go.Scatter3d(x=[x_val[0]], y=[z_val[0]], z=[y_val[0]], mode='markers', 
                            marker=dict(color='black', size=4), name='야구공'))
 
@@ -111,21 +111,21 @@ gx, gy, gz = Fg_val[0][0], Fg_val[0][2], Fg_val[0][1]
 dx, dy, dz = Fd_val[0][0], Fd_val[0][2], Fd_val[0][1]
 mx, my, mz = Fm_val[0][0], Fm_val[0][2], Fm_val[0][1]
 
-# 4, 5. 중력 화살표 (선 + 원뿔 머리)
+# 4, 5. 중력 화살표 (선 + 원뿔 머리) - 두께를 3에서 6으로 증가
 fig.add_trace(go.Scatter3d(x=[x_val[0], x_val[0] + gx*arrow_scale], y=[z_val[0], z_val[0] + gy*arrow_scale], z=[y_val[0], y_val[0] + gz*arrow_scale],
-                           mode='lines', line=dict(color='green', width=3), name='중력(선)'))
+                           mode='lines', line=dict(color='green', width=6), name='중력(선)'))
 fig.add_trace(go.Cone(x=[x_val[0] + gx*arrow_scale], y=[z_val[0] + gy*arrow_scale], z=[y_val[0] + gz*arrow_scale], u=[gx], v=[gy], w=[gz],
                       colorscale=[[0, 'green'], [1, 'green']], showscale=False, sizemode='absolute', sizeref=cone_scale, anchor='tip', hoverinfo='skip', name='중력'))
 
-# 6, 7. 공기 저항력 화살표 (선 + 원뿔 머리)
+# 6, 7. 공기 저항력 화살표 (선 + 원뿔 머리) - 두께를 3에서 6으로 증가
 fig.add_trace(go.Scatter3d(x=[x_val[0], x_val[0] + dx*arrow_scale], y=[z_val[0], z_val[0] + dy*arrow_scale], z=[y_val[0], y_val[0] + dz*arrow_scale],
-                           mode='lines', line=dict(color='red', width=3), name='공기 저항(선)'))
+                           mode='lines', line=dict(color='red', width=6), name='공기 저항(선)'))
 fig.add_trace(go.Cone(x=[x_val[0] + dx*arrow_scale], y=[z_val[0] + dy*arrow_scale], z=[y_val[0] + dz*arrow_scale], u=[dx], v=[dy], w=[dz],
                       colorscale=[[0, 'red'], [1, 'red']], showscale=False, sizemode='absolute', sizeref=cone_scale, anchor='tip', hoverinfo='skip', name='공기 저항력'))
 
-# 8, 9. 마그누스 힘 화살표 (선 + 원뿔 머리)
+# 8, 9. 마그누스 힘 화살표 (선 + 원뿔 머리) - 두께를 3에서 6으로 증가
 fig.add_trace(go.Scatter3d(x=[x_val[0], x_val[0] + mx*arrow_scale], y=[z_val[0], z_val[0] + my*arrow_scale], z=[y_val[0], y_val[0] + mz*arrow_scale],
-                           mode='lines', line=dict(color='purple', width=3), name='마그누스 힘(선)'))
+                           mode='lines', line=dict(color='purple', width=6), name='마그누스 힘(선)'))
 fig.add_trace(go.Cone(x=[x_val[0] + mx*arrow_scale], y=[z_val[0] + my*arrow_scale], z=[y_val[0] + mz*arrow_scale], u=[mx], v=[my], w=[mz],
                       colorscale=[[0, 'purple'], [1, 'purple']], showscale=False, sizemode='absolute', sizeref=cone_scale, anchor='tip', hoverinfo='skip', name='마그누스 힘'))
 
@@ -170,7 +170,7 @@ fig.update_layout(
         )
     ),
     height=700,
-    margin=dict(l=0, r=0, b=80, t=30), # 하단 여백(b)을 80으로 늘려 잘림 현상 해결
+    margin=dict(l=0, r=0, b=80, t=30), 
     showlegend=False,
     updatemenus=[dict(
         type="buttons",
