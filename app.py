@@ -9,10 +9,10 @@ A = np.pi * r**2  # 공 단면적 (m^2)
 g = 9.81  # 중력가속도 (m/s^2)
 Cd = 0.3  # 항력 계수
 Cl_factor = 1.5  # 마그누스 양력 계수 비례상수
+dt = 0.005  # 시간 간격 (초) - 함수 밖으로 꺼냈습니다!
 
 def calculate_trajectory_with_forces(v0, theta_deg, spin_rpm, rho, spin_type):
     """오일러 방법을 사용한 2D 궤적 계산기 (힘 벡터 반환)"""
-    dt = 0.005 # 더 부드러운 애니메이션을 위해 dt를 줄임
     theta = np.radians(theta_deg)
     
     x, y = 0.0, 2.0  # 투수의 릴리스 포인트 높이 (2m)
@@ -26,28 +26,26 @@ def calculate_trajectory_with_forces(v0, theta_deg, spin_rpm, rho, spin_type):
     else:
         omega = 0.0 
         
-    # 모든 리스트를 빈 상태로 시작하여 길이를 완벽하게 일치시킵니다.
     x_traj, y_traj = [], []
     Fg_traj, Fd_traj, Fm_traj, v_traj = [], [], [], []
     
     while y > 0 and x < 20: 
-        # 1. 현재 위치 저장
         x_traj.append(x)
         y_traj.append(y)
         
         v = np.sqrt(vx**2 + vy**2)
         v_traj.append((vx, vy))
 
-        # 2. 중력 (항상 아래로 일정)
+        # 중력
         F_g = (0, -m * g)
         Fg_traj.append(F_g)
         
-        # 3. 공기 저항력 (이동 반대 방향)
+        # 공기 저항력
         Fd_mag = 0.5 * rho * v**2 * Cd * A
         Fd = (-Fd_mag * (vx / v) if v > 0 else 0, -Fd_mag * (vy / v) if v > 0 else 0)
         Fd_traj.append(Fd)
         
-        # 4. 마그누스 힘 (회전 방향에 따라 수직으로 작용)
+        # 마그누스 힘
         Fm_mag = 0.5 * rho * v**2 * (Cl_factor * (r * omega / v)) * A if v > 0 else 0
         if spin_type == "백스핀 (포심 패스트볼)":
             Fm = (-Fm_mag * (vy / v) if v > 0 else 0, Fm_mag * (vx / v) if v > 0 else 0)
@@ -57,10 +55,11 @@ def calculate_trajectory_with_forces(v0, theta_deg, spin_rpm, rho, spin_type):
             Fm = (0, 0)
         Fm_traj.append(Fm)
         
-        # 5. 가속도 적용 및 다음 위치(x, y) 업데이트
+        # 가속도
         ax = (Fd[0] + Fm[0]) / m
         ay = (F_g[1] + Fd[1] + Fm[1]) / m
         
+        # 속도 및 위치 업데이트
         vx += ax * dt
         vy += ay * dt
         x += vx * dt
@@ -91,51 +90,44 @@ with st.sidebar:
 
 # --- 궤적 계산 ---
 x_val, y_val, Fg_val, Fd_val, Fm_val, v_val = calculate_trajectory_with_forces(v0_ms, 1.0, spin_rpm, rho, spin_type)
-x_base, y_base, _, _, _, _ = calculate_trajectory_with_forces(v0_ms, 1.0, 0, rho, "무회전") # 비교용 무회전 궤적
+x_base, y_base, _, _, _, _ = calculate_trajectory_with_forces(v0_ms, 1.0, 0, rho, "무회전") 
 
 # --- Plotly 애니메이션 그래프 구성 ---
 fig = go.Figure()
 
-# 1. 무회전 비교선 추가 (고정된 회색 점선)
+# 1. 무회전 비교선 추가
 fig.add_trace(go.Scatter(x=x_base, y=y_base, mode='lines', 
                          line=dict(color='lightgray', dash='dash', width=2), 
                          name='무회전 궤적 (비교용)'))
 
-# 2. 실제 궤적 (파란색 선) 및 야구공 (빨간 점) 껍데기 생성
+# 2. 실제 궤적 및 야구공 껍데기 생성
 fig.add_trace(go.Scatter(x=[x_val[0]], y=[y_val[0]], mode='lines', 
                          line=dict(color='blue', width=3), name=spin_type))
 fig.add_trace(go.Scatter(x=[x_val[0]], y=[y_val[0]], mode='markers', 
                          marker=dict(color='red', size=12), name='야구공'))
 
-# 3. 힘 벡터 화살표 껍데기 생성 (모드: lines+markers)
-# 중력 (녹색)
+# 3. 힘 벡터 화살표 껍데기 생성
 fig.add_trace(go.Scatter(x=[x_val[0], x_val[0] + Fg_val[0][0] * arrow_scale], y=[y_val[0], y_val[0] + Fg_val[0][1] * arrow_scale],
                          mode='lines+markers', line=dict(color='green', width=2), 
                          marker=dict(symbol='triangle-up', size=10, angleref='previous'), name='중력 (Gravity)'))
-# 공기 저항력 (빨간색)
 fig.add_trace(go.Scatter(x=[x_val[0], x_val[0] + Fd_val[0][0] * arrow_scale], y=[y_val[0], y_val[0] + Fd_val[0][1] * arrow_scale],
                          mode='lines+markers', line=dict(color='red', width=2), 
                          marker=dict(symbol='triangle-up', size=10, angleref='previous'), name='공기 저항력 (Drag Force)'))
-# 마그누스 힘 (보라색)
 fig.add_trace(go.Scatter(x=[x_val[0], x_val[0] + Fm_val[0][0] * arrow_scale], y=[y_val[0], y_val[0] + Fm_val[0][1] * arrow_scale],
                          mode='lines+markers', line=dict(color='purple', width=2), 
                          marker=dict(symbol='triangle-up', size=10, angleref='previous'), name='마그누스 힘 (Magnus Force)'))
 
-# 4. 애니메이션 프레임 생성 (공이 날아가는 과정)
+# 4. 애니메이션 프레임 생성
 frames = []
-interval = 5 # 성능을 위해 5스텝 간격으로 프레임 생성
+interval = 5 
 for i in range(0, len(x_val), interval): 
-    # 현재 위치에서의 힘 벡터 업데이트 데이터 구성
     frames.append(go.Frame(
         data=[
-            go.Scatter(x=x_base, y=y_base), # 무회전 선 (유지)
-            go.Scatter(x=x_val[:i+1], y=y_val[:i+1]), # 투구 궤적 선 그려짐
-            go.Scatter(x=[x_val[i]], y=[y_val[i]]),  # 야구공 위치 이동
-            # 중력 화살표 업데이트 (선+머리)
+            go.Scatter(x=x_base, y=y_base), 
+            go.Scatter(x=x_val[:i+1], y=y_val[:i+1]), 
+            go.Scatter(x=[x_val[i]], y=[y_val[i]]),  
             go.Scatter(x=[x_val[i], x_val[i] + Fg_val[i][0] * arrow_scale], y=[y_val[i], y_val[i] + Fg_val[i][1] * arrow_scale]),
-            # 공기 저항력 화살표 업데이트 (선+머리)
             go.Scatter(x=[x_val[i], x_val[i] + Fd_val[i][0] * arrow_scale], y=[y_val[i], y_val[i] + Fd_val[i][1] * arrow_scale]),
-            # 마그누스 힘 화살표 업데이트 (선+머리)
             go.Scatter(x=[x_val[i], x_val[i] + Fm_val[i][0] * arrow_scale], y=[y_val[i], y_val[i] + Fm_val[i][1] * arrow_scale])
         ]
     ))
@@ -160,7 +152,6 @@ fig.update_layout(
     )]
 )
 
-# 홈플레이트 위치 표시
 fig.add_vline(x=18.44, line_width=2, line_dash="dash", line_color="green", 
               annotation_text="홈플레이트 (18.44m)", annotation_position="top left")
 
