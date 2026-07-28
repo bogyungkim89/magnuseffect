@@ -17,18 +17,10 @@ def calculate_trajectory_3d(v0, theta_deg, spin_rpm, rho, spin_type):
     vel = np.array([v0 * np.cos(theta), v0 * np.sin(theta), 0.0])
     
     omega_mag = spin_rpm * (2 * np.pi / 60)
-    
-    # 🌟 구종별 회전축(Omega Vector) 설정
-    if "백스핀" in spin_type:
-        omega = np.array([0.0, 0.0, omega_mag]) # Z축 회전 (위로 뜸)
-    elif "톱스핀" in spin_type:
-        omega = np.array([0.0, 0.0, -omega_mag]) # Z축 역회전 (아래로 떨어짐)
-    elif "사이드스핀" in spin_type:
-        omega = np.array([0.0, omega_mag, 0.0]) # Y축 회전 (옆으로 휨)
-    elif "자이로스핀" in spin_type:
-        omega = np.array([omega_mag, 0.0, 0.0]) # X축 회전 (진행 방향과 평행 -> 마그누스 힘 0)
-    else:
-        omega = np.array([0.0, 0.0, 0.0]) # 무회전
+    if "백스핀" in spin_type: omega = np.array([0.0, 0.0, omega_mag]) 
+    elif "톱스핀" in spin_type: omega = np.array([0.0, 0.0, -omega_mag]) 
+    elif "사이드스핀" in spin_type: omega = np.array([0.0, omega_mag, 0.0]) 
+    else: omega = np.array([0.0, 0.0, 0.0])
         
     x_t, y_t, z_t = [], [], []
     while pos[1] > 0 and pos[0] < 20: 
@@ -40,7 +32,6 @@ def calculate_trajectory_3d(v0, theta_deg, spin_rpm, rho, spin_type):
         F_g = np.array([0.0, -m * g, 0.0])
         F_d = - (0.5 * rho * v_mag**2 * Cd * A) * (vel / v_mag) if v_mag > 0 else np.array([0.0, 0.0, 0.0])
         
-        # 마그누스 힘 계산 (자이로스핀의 경우 omega와 vel이 평행하므로 외적 결과가 [0,0,0]이 되어 마그누스 힘이 정확히 0이 됨)
         F_m = np.array([0.0, 0.0, 0.0])
         if v_mag > 0 and np.linalg.norm(omega) > 0:
             F_m = 0.5 * rho * A * Cl_factor * r * np.cross(omega, vel)
@@ -77,20 +68,14 @@ ball_base = '<circle cx="50" cy="50" r="35" fill="#f8f9fa" stroke="#343a40" stro
 # --- Streamlit UI 구성 ---
 st.set_page_config(page_title="3D 야구공 물리 시뮬레이터", layout="wide")
 st.title("⚾ 3D 야구공 궤적 시뮬레이터")
-st.markdown("선택한 구종의 그립, 릴리스 스냅, 그리고 **자이로스핀(마그누스 힘 0)**의 물리적 원리를 단계별 그림으로 확인하세요!")
+st.markdown("선택한 구종의 그립, **던지는 순간의 손가락 스냅**, 물리적 힘의 작용 원리를 단계별 그림으로 직관적으로 확인하세요!")
 
 with st.sidebar:
     st.header("투구 설정")
     v0_kmh = st.slider("구속 (km/h)", 100, 160, 145)
     v0_ms = v0_kmh / 3.6 
     spin_rpm = st.slider("회전수 (RPM)", 0, 3000, 2200)
-    spin_type = st.radio("회전 방향 (구종 선택)", [
-        "백스핀 (포심 패스트볼)", 
-        "톱스핀 (커브볼)", 
-        "사이드스핀 (슬라이더)", 
-        "자이로스핀 (자이로볼)", 
-        "무회전 (너클볼/포크볼)"
-    ])
+    spin_type = st.radio("회전 방향 (구종 선택)", ["백스핀 (포심 패스트볼)", "톱스핀 (커브볼)", "사이드스핀 (슬라이더)", "무회전 (너클볼/포크볼)"])
     st.header("환경 설정 (공기 밀도)")
     rho = st.slider("공기 밀도 (kg/m³)", 0.8, 1.3, 1.225, 0.005)
 
@@ -120,13 +105,6 @@ elif "사이드스핀" in spin_type:
     svg_magnus = f'<svg viewBox="0 0 100 100" width="130" height="130">{svg_defs}{ball_base}<ellipse cx="50" cy="50" rx="35" ry="12" fill="none" stroke="#457b9d" stroke-width="3" stroke-dasharray="3,3"/><line x1="50" y1="50" x2="95" y2="50" stroke="#9d4edd" stroke-width="4" marker-end="url(#arrow-purple)"/></svg>'
     svg_force = f'<svg viewBox="0 0 100 100" width="130" height="130">{svg_defs}{ball_base}<line x1="50" y1="50" x2="50" y2="85" stroke="#2a9d8f" stroke-width="3" marker-end="url(#arrow-green)"/><line x1="50" y1="50" x2="85" y2="50" stroke="#9d4edd" stroke-width="3" marker-end="url(#arrow-purple)"/><line x1="50" y1="50" x2="85" y2="85" stroke="#000000" stroke-width="4" stroke-dasharray="3,3" marker-end="url(#arrow-black)"/></svg>'
     desc1, desc2, desc3, desc4 = "중심축 바깥쪽으로 치우쳐 쥔 손가락", "공의 측면 실밥을 팽이 돌리듯 비껴 베어냄", "측면으로 도는 사이드스핀 (수평력)", "아래로 떨어지며 옆으로 예리하게 꺾임"
-
-elif "자이로스핀" in spin_type:
-    svg_grip = f'<svg viewBox="0 0 100 100" width="130" height="130">{ball_base}<circle cx="50" cy="50" r="15" fill="#ffcdb2" stroke="#343a40" stroke-width="1.5"/></svg>'
-    svg_snap = f'<svg viewBox="0 0 100 100" width="130" height="130">{svg_defs}{ball_base}<path d="M 30 50 Q 50 30, 70 50 Q 50 70, 30 50" fill="none" stroke="#e63946" stroke-width="4" marker-end="url(#arrow-red)"/></svg>'
-    svg_magnus = f'<svg viewBox="0 0 100 100" width="130" height="130">{svg_defs}{ball_base}<text x="50" y="55" font-size="14" text-anchor="middle" fill="#9d4edd" font-weight="bold">Force = 0</text></svg>'
-    svg_force = f'<svg viewBox="0 0 100 100" width="130" height="130">{svg_defs}{ball_base}<line x1="50" y1="50" x2="50" y2="85" stroke="#2a9d8f" stroke-width="3" marker-end="url(#arrow-green)"/><line x1="50" y1="50" x2="50" y2="85" stroke="#000000" stroke-width="4" stroke-dasharray="3,3" marker-end="url(#arrow-black)"/></svg>'
-    desc1, desc2, desc3, desc4 = "총알처럼 감싸 쥔 그립", "손목을 비틀어 나선형 회전(총알 회전)을 가함", "진행 방향과 평행하여 **마그누스 힘 0**", "오직 중력만 받아 홈플레이트에서 뚝 떨어짐"
 
 else:
     svg_grip = f'<svg viewBox="0 0 100 100" width="130" height="130">{ball_base}<rect x="25" y="0" width="10" height="40" rx="5" fill="#ffcdb2" stroke="#343a40" stroke-width="1.5" transform="rotate(-20, 25, 0)"/><rect x="65" y="0" width="10" height="40" rx="5" fill="#ffcdb2" stroke="#343a40" stroke-width="1.5" transform="rotate(20, 65, 0)"/></svg>'
