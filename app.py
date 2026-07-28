@@ -11,8 +11,8 @@ Cd = 0.3  # 항력 계수
 Cl_factor = 1.5  # 마그누스 양력 계수 비례상수
 
 dt = 0.005  # 시간 간격 (초)
-arrow_scale = 0.4  # 화살표 길이 배율 (고정)
-cone_scale = 0.3   # 화살표 머리(원뿔) 크기 배율
+arrow_scale = 0.25  # 화살표 길이 대폭 축소 (기존 0.4 -> 0.25)
+cone_scale = 0.1    # 화살표 머리(원뿔) 크기 대폭 축소 (기존 0.3 -> 0.1)
 
 def calculate_trajectory_3d(v0, theta_deg, spin_rpm, rho, spin_type):
     """3D 벡터 외적을 활용한 정교한 3차원 궤적 및 힘 계산기"""
@@ -100,11 +100,13 @@ fig = go.Figure()
 fig.add_trace(go.Scatter3d(x=x_base, y=z_base, z=y_base, mode='lines', 
                            line=dict(color='lightgray', dash='dash', width=4), name='무회전 궤적'))
 
-# 2, 3. 실제 궤적 선 및 야구공 마커 껍데기
+# 2. 실제 궤적 선 추가
 fig.add_trace(go.Scatter3d(x=[x_val[0]], y=[z_val[0]], z=[y_val[0]], mode='lines', 
                            line=dict(color='blue', width=6), name=spin_type))
+                           
+# 3. 야구공 마커 추가 (크기 축소 및 검은색 변경)
 fig.add_trace(go.Scatter3d(x=[x_val[0]], y=[z_val[0]], z=[y_val[0]], mode='markers', 
-                           marker=dict(color='red', size=8), name='야구공'))
+                           marker=dict(color='black', size=4), name='야구공'))
 
 gx, gy, gz = Fg_val[0][0], Fg_val[0][2], Fg_val[0][1]
 dx, dy, dz = Fd_val[0][0], Fd_val[0][2], Fd_val[0][1]
@@ -112,19 +114,19 @@ mx, my, mz = Fm_val[0][0], Fm_val[0][2], Fm_val[0][1]
 
 # 4, 5. 중력 화살표 (선 + 원뿔 머리)
 fig.add_trace(go.Scatter3d(x=[x_val[0], x_val[0] + gx*arrow_scale], y=[z_val[0], z_val[0] + gy*arrow_scale], z=[y_val[0], y_val[0] + gz*arrow_scale],
-                           mode='lines', line=dict(color='green', width=4), name='중력(선)'))
+                           mode='lines', line=dict(color='green', width=3), name='중력(선)'))
 fig.add_trace(go.Cone(x=[x_val[0] + gx*arrow_scale], y=[z_val[0] + gy*arrow_scale], z=[y_val[0] + gz*arrow_scale], u=[gx], v=[gy], w=[gz],
                       colorscale=[[0, 'green'], [1, 'green']], showscale=False, sizemode='absolute', sizeref=cone_scale, anchor='tip', hoverinfo='skip', name='중력'))
 
 # 6, 7. 공기 저항력 화살표 (선 + 원뿔 머리)
 fig.add_trace(go.Scatter3d(x=[x_val[0], x_val[0] + dx*arrow_scale], y=[z_val[0], z_val[0] + dy*arrow_scale], z=[y_val[0], y_val[0] + dz*arrow_scale],
-                           mode='lines', line=dict(color='red', width=4), name='공기 저항(선)'))
+                           mode='lines', line=dict(color='red', width=3), name='공기 저항(선)'))
 fig.add_trace(go.Cone(x=[x_val[0] + dx*arrow_scale], y=[z_val[0] + dy*arrow_scale], z=[y_val[0] + dz*arrow_scale], u=[dx], v=[dy], w=[dz],
                       colorscale=[[0, 'red'], [1, 'red']], showscale=False, sizemode='absolute', sizeref=cone_scale, anchor='tip', hoverinfo='skip', name='공기 저항력'))
 
 # 8, 9. 마그누스 힘 화살표 (선 + 원뿔 머리)
 fig.add_trace(go.Scatter3d(x=[x_val[0], x_val[0] + mx*arrow_scale], y=[z_val[0], z_val[0] + my*arrow_scale], z=[y_val[0], y_val[0] + mz*arrow_scale],
-                           mode='lines', line=dict(color='purple', width=4), name='마그누스 힘(선)'))
+                           mode='lines', line=dict(color='purple', width=3), name='마그누스 힘(선)'))
 fig.add_trace(go.Cone(x=[x_val[0] + mx*arrow_scale], y=[z_val[0] + my*arrow_scale], z=[y_val[0] + mz*arrow_scale], u=[mx], v=[my], w=[mz],
                       colorscale=[[0, 'purple'], [1, 'purple']], showscale=False, sizemode='absolute', sizeref=cone_scale, anchor='tip', hoverinfo='skip', name='마그누스 힘'))
 
@@ -157,7 +159,7 @@ fig.frames = frames
 
 # 11. 레이아웃 및 3D 카메라 설정
 fig.update_layout(
-    uirevision='constant', # 🌟 핵심 해결책: 프레임이 새로고침되어도 사용자가 돌려놓은 3D 시점 유지!
+    uirevision='constant',
     scene=dict(
         xaxis=dict(range=[0, 20], title="투구 거리 (m)", showgrid=True),
         yaxis=dict(range=[-2, 2], title="좌우 폭 (m)", showgrid=True), 
@@ -180,7 +182,6 @@ fig.update_layout(
         buttons=[
             dict(label="▶ 재생",
                  method="animate",
-                 # 다시 redraw=True로 되돌려 공이 움직이게 만듭니다. (대신 uirevision이 시점을 방어해줍니다)
                  args=[None, dict(frame=dict(duration=80, redraw=True), transition=dict(duration=0), fromcurrent=True)]),
             dict(label="⏸ 일시정지",
                  method="animate",
