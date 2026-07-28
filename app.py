@@ -114,15 +114,15 @@ fig.add_trace(go.Scatter(x=[x_val[0]], y=[y_val[0]], mode='markers',
 # 중력 (녹색)
 fig.add_trace(go.Scatter(x=[x_val[0], x_val[0] + Fg_val[0][0] * arrow_scale], y=[y_val[0], y_val[0] + Fg_val[0][1] * arrow_scale],
                          mode='lines+markers', line=dict(color='green', width=2), 
-                         marker=dict(symbol='triangle-up', size=10, angleref='relative'), name='중력 (Gravity)'))
+                         marker=dict(symbol='triangle-up', size=10, angleref='previous'), name='중력 (Gravity)'))
 # 공기 저항력 (빨간색)
 fig.add_trace(go.Scatter(x=[x_val[0], x_val[0] + Fd_val[0][0] * arrow_scale], y=[y_val[0], y_val[0] + Fd_val[0][1] * arrow_scale],
                          mode='lines+markers', line=dict(color='red', width=2), 
-                         marker=dict(symbol='triangle-up', size=10, angleref='relative'), name='공기 저항력 (Drag Force)'))
+                         marker=dict(symbol='triangle-up', size=10, angleref='previous'), name='공기 저항력 (Drag Force)'))
 # 마그누스 힘 (보라색)
 fig.add_trace(go.Scatter(x=[x_val[0], x_val[0] + Fm_val[0][0] * arrow_scale], y=[y_val[0], y_val[0] + Fm_val[0][1] * arrow_scale],
                          mode='lines+markers', line=dict(color='purple', width=2), 
-                         marker=dict(symbol='triangle-up', size=10, angleref='relative'), name='마그누스 힘 (Magnus Force)'))
+                         marker=dict(symbol='triangle-up', size=10, angleref='previous'), name='마그누스 힘 (Magnus Force)'))
 
 # 4. 애니메이션 프레임 생성 (공이 날아가는 과정)
 frames = []
