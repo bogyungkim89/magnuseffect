@@ -145,15 +145,13 @@ st.markdown("---")
 st.subheader("🎬 구종별 릴리즈 스냅 및 회전 시작 애니메이션")
 st.markdown("공이 손에서 떠나며 **실제 스냅 방향으로 튀어나오고 회전하기 시작하는 찰나의 순간**을 3D로 확대하여 보여줍니다.")
 
-# 릴리즈 순간의 회전 벡터 시각화를 위한 샘플 데이터 생성
 def get_release_animation_data(spin_type):
     t = np.linspace(0, 2*np.pi, 30)
-    # 공 표면을 도는 스핀 링 포인트 생성
     if "백스핀" in spin_type:
         rx = np.zeros_like(t)
         ry = 0.3 * np.cos(t)
         rz = 2.0 + 0.3 * np.sin(t)
-        snap_arrow = ([0, 0], [0, 0], [1.5, 2.5]) # 위아래 스냅
+        snap_arrow = ([0, 0], [0, 0], [1.5, 2.5])
     elif "톱스핀" in spin_type:
         rx = np.zeros_like(t)
         ry = 0.3 * np.cos(t)
@@ -170,18 +168,15 @@ def get_release_animation_data(spin_type):
         rz = np.zeros_like(t)
         snap_arrow = ([0, 1.5], [0, 0], [2.0, 2.0])
     else:
-        rx, ry, rz = [], [], []
+        rx, ry, rz = np.array([]), np.array([]), np.array([])
         snap_arrow = ([0, 0], [0, 0], [2.0, 2.0])
-    return rx, ry, rz, snap_arrow
+    return rx, ry, rz, snap_arrow, t
 
-rel_rx, rel_ry, rel_rz, snap_vec = get_release_animation_data(spin_type)
+rel_rx, rel_ry, rel_rz, snap_vec, t = get_release_animation_data(spin_type)
 
 fig_rel = go.Figure()
-# 손가락 스냅 방향 화살표 (붉은색)
 fig_rel.add_trace(go.Scatter3d(x=snap_vec[0], y=snap_vec[1], z=snap_vec[2], mode='lines', line=dict(color='red', width=8), name='손가락 스냅 방향'))
-# 공 중심점
 fig_rel.add_trace(go.Scatter3d(x=[0], y=[0], z=[2.0], mode='markers', marker=dict(color='black', size=12), name='야구공'))
-# 회전 궤적 링
 if len(rel_rx) > 0:
     fig_rel.add_trace(go.Scatter3d(x=rel_rx, y=rel_ry, z=rel_rz, mode='lines', line=dict(color='purple', width=4), name='회전 방향 (스핀)'))
 
